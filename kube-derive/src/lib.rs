@@ -148,6 +148,9 @@ mod resource;
 /// Sets the description of the schema in the generated CRD. If not specified
 /// `Auto-generated derived type for {customResourceName} via CustomResource` will be used instead.
 ///
+/// ## `#[kube(label = r#"{ "key": "LABEL_KEY", "value": "LABEL_VALUE"}"#))]`
+/// Add a single label to the generated CRD.
+///
 /// ## Example with all properties
 ///
 /// ```rust

@@ -37,6 +37,8 @@ struct KubeAttrs {
     scale: Option<String>,
     #[darling(default)]
     crates: Crates,
+    #[darling(multiple, rename = "label")]
+    labels: Vec<String>,
 }
 
 #[derive(Debug, FromMeta)]
@@ -172,6 +174,7 @@ pub(crate) fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStrea
                 serde_json,
                 std,
             },
+        labels,
     } = kube_attrs;
 
     let struct_name = kind_struct.unwrap_or_else(|| kind.clone());
@@ -247,6 +250,24 @@ pub(crate) fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStrea
         derive_paths.push(syn::parse_quote! { #schemars::JsonSchema });
     }
 
+    let has_labels = !labels.is_empty();
+    let labels = quote! {
+        Some(
+            {
+                let mut label_map = #std::collections::BTreeMap::new();
+                #(
+                    let label: #serde_json::Value = #serde_json::from_str(#labels).unwrap();
+                    if let #serde_json::Value::Object(obj) = label {
+                        if let (Some(#serde_json::Value::String(key)), Some(#serde_json::Value::String(value))) = (obj.get("key"), obj.get("value")) {
+                            label_map.insert(key.to_string(), value.to_string());
+                        }
+                    }
+                )*
+                label_map
+            }
+        )
+    };
+
     let docstr =
         doc.unwrap_or_else(|| format!(" Auto-generated derived type for {ident} via `CustomResource`"));
     let quoted_serde = Literal::string(&serde.to_token_stream().to_string());
@@ -269,6 +290,7 @@ pub(crate) fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStrea
                 Self {
                     metadata: #k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
                         name: Some(name.to_string()),
+                        labels: if #has_labels { #labels } else { None },
                         ..Default::default()
                     },
                     spec: spec,
@@ -382,7 +404,11 @@ pub(crate) fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStrea
     let categories_json = serde_json::to_string(&categories).unwrap();
     let short_json = serde_json::to_string(&shortnames).unwrap();
     let crd_meta_name = format!("{plural}.{group}");
-    let crd_meta = quote! { { "name": #crd_meta_name } };
+    let crd_meta = if has_labels {
+        quote! { { "name": #crd_meta_name, "labels": #labels } }
+    } else {
+        quote! { { "name": #crd_meta_name } }
+    };
 
     let schemagen = if schema_mode.use_in_crd() {
         quote! {

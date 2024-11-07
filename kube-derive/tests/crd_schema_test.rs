@@ -20,7 +20,9 @@ use std::collections::{HashMap, HashSet};
     shortname = "fo",
     shortname = "f",
     selectable = ".spec.nonNullable",
-    selectable = ".spec.nullable"
+    selectable = ".spec.nullable",
+    label = r#"{"key":"clux.dev", "value": "cluxingv1"}"#,
+    label = r#"{"key":"clux.dev/persistence", "value": "disabled"}"#
 )]
 #[serde(rename_all = "camelCase")]
 struct FooSpec {
@@ -151,6 +153,10 @@ fn test_serialized_matches_expected() {
             "kind": "Foo",
             "metadata": {
                 "name": "bar",
+                "labels": {
+                    "clux.dev" : "cluxingv1",
+                    "clux.dev/persistence": "disabled",
+                },
             },
             "spec": {
                 "nonNullable": "asdf",
@@ -182,7 +188,11 @@ fn test_crd_schema_matches_expected() {
             "apiVersion": "apiextensions.k8s.io/v1",
             "kind": "CustomResourceDefinition",
             "metadata": {
-                "name": "foos.clux.dev"
+                "name": "foos.clux.dev",
+                "labels": {
+                    "clux.dev" : "cluxingv1",
+                    "clux.dev/persistence": "disabled",
+                },
             },
             "spec": {
                 "group": "clux.dev",
